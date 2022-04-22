@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     //    int m,               /* IN - Matrix rows */
     //    int n,               /* IN - Matrix cols */
     //    MPI_Comm comm)       /* IN - Communicator */
-    print_row_striped_matrix((void **)A, MPI_DOUBLE, rows, cols, MPI_COMM_WORLD);
+    //print_row_striped_matrix((void **)A, MPI_DOUBLE, rows, cols, MPI_COMM_WORLD);
 
     // void write_row_striped_matrix (
     //    char* outFile,       /* IN - output file name */
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     //    int m,               /* IN - Matrix rows */
     //    int n,               /* IN - Matrix cols */
     //    MPI_Comm comm)       /* IN - Communicator */
-    print_row_striped_matrix_halo((void**)A2, MPI_DOUBLE, rows2, cols2, MPI_COMM_WORLD);
+    //print_row_striped_matrix_halo((void**)A2, MPI_DOUBLE, rows2, cols2, MPI_COMM_WORLD);
 
     // void exchange_row_striped_matix_halo(
     //void **a,           /* IN - 2D array */
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     //int m,              /* IN - Matrix rows */
     //int n,              /* IN - Matrix cols */
     //MPI_Comm comm)      /* IN - Communicator */
-    //exchange_row_striped_matix_halo((void **)A2, MPI_DOUBLE, rows2, cols2, MPI_COMM_WORLD);
+    exchange_row_striped_matix_halo((void **)A2, MPI_DOUBLE, rows2, cols2, MPI_COMM_WORLD);
 
     // void print_row_striped_matrix_halo(
     //    void **a,            /* IN - 2D array */
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     //    int m,               /* IN - Matrix rows */
     //    int n,               /* IN - Matrix cols */
     //    MPI_Comm comm)       /* IN - Communicator */
-    //write_row_striped_matrix_halo(argv[3], (void**)A2, MPI_DOUBLE, rows, cols, MPI_COMM_WORLD);
+    write_row_striped_matrix_halo(argv[3], (void**)A2, MPI_DOUBLE, rows, cols, MPI_COMM_WORLD);
 
     MPI_Finalize();
 

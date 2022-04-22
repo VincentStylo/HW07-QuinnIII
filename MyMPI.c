@@ -786,36 +786,30 @@ void exchange_row_striped_matix_halo(
       next = 0;
 
    // Increments the first proc if proc == 2
-   int increment;
-   if (p == 2)
-   {
-      increment = 1;
-   } else {
-      increment = 0;
-   }
-   
 
    // post non-blocking receives and sends for neighbors
    if (id == 0)
    {
-
+      //printf("%d This is local_rows, %d\n",id, local_rows);
       MPI_Request reqs[2]; // required variable for non-blocking calls
-      MPI_Isend(a[0 + increment], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[1]);
-      MPI_Irecv(a[1 + increment], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[0]);
+      MPI_Isend(a[local_rows - 2], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[1]);
+      MPI_Irecv(a[local_rows -1], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[0]);
       MPI_Waitall(2, reqs, MPI_STATUSES_IGNORE);
    }
    else if (id > 0 && id < p - 1)
    {
+      //printf("%d This is local_rows, %d\n",id, local_rows);
       MPI_Request reqs[4]; // required variable for non-blocking calls
       MPI_Irecv(a[0], n, dtype, prev, 1, MPI_COMM_WORLD, &reqs[0]);
-      MPI_Irecv(a[3], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[1]);
+      MPI_Irecv(a[local_rows - 1], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[1]);
 
       MPI_Isend(a[1], n, dtype, prev, 1, MPI_COMM_WORLD, &reqs[2]);
-      MPI_Isend(a[2], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[3]);
+      MPI_Isend(a[local_rows - 2], n, dtype, next, 1, MPI_COMM_WORLD, &reqs[3]);
       MPI_Waitall(2, reqs, MPI_STATUSES_IGNORE);
    }
    else
    {
+      //printf("%d This is local_rows, %d\n",id, local_rows);
       MPI_Request reqs[2]; // required variable for non-blocking calls
       MPI_Irecv(a[0], n, dtype, prev, 1, MPI_COMM_WORLD, &reqs[0]);
       MPI_Isend(a[1], n, dtype, prev, 1, MPI_COMM_WORLD, &reqs[1]);
@@ -1048,7 +1042,7 @@ void print_row_striped_matrix(
       {
          datum_size = get_size(dtype);
          max_block_size = BLOCK_SIZE(p - 1, p, m);
-         bstorage = my_malloc(id,max_block_size * n * datum_size);
+         bstorage = my_malloc(id, max_block_size * n * datum_size);
          b = (void **)my_malloc(id, max_block_size * datum_size);
          b[0] = bstorage;
          for (i = 1; i < max_block_size; i++)
@@ -1096,12 +1090,13 @@ void print_row_striped_matrix_halo(
                           any process */
    int prompt;         /* Dummy variable */
    int p;              /* Number of processes */
+   int total_halo = 0;
+   int temp_m = 0;
 
    MPI_Comm_rank(comm, &id);
    MPI_Comm_size(comm, &p);
    local_rows = BLOCK_SIZE(id, p, m);
 
-   int temp_m = 0;
    if (id == 0 || id == p - 1)
    {
       temp_m = 1;
@@ -1113,36 +1108,35 @@ void print_row_striped_matrix_halo(
 
    if (!id)
    {
-      printf("This process 0, with a size of: %d\n", local_rows + temp_m);
       print_submatrix(a, dtype, local_rows + temp_m, n);
-      printf("\n");
       if (p > 1)
       {
+         for (int i = 0; i < p; i++)
+         {
+            if (i == 0 || i == p - 1)
+            {
+               total_halo = total_halo + 1;
+            }
+            else
+            {
+               total_halo = total_halo + 2;
+            }
+         }
          datum_size = get_size(dtype);
-         //max_block_size = BLOCK_SIZE(p - 1, p, m);
-         max_block_size = 4;
-         //printf("This is P: %d\n", max_block_size);
-         bstorage = my_malloc(id,max_block_size * n * datum_size);
+         max_block_size = BLOCK_SIZE(id, p, m) + total_halo;
+         bstorage = my_malloc(id, max_block_size * n * datum_size);
          b = (void **)my_malloc(id, max_block_size * datum_size);
          b[0] = bstorage;
-         for (i = 1; i < max_block_size + temp_m; i++)
+         for (i = 1; i < max_block_size; i++)
          {
             b[i] = b[i - 1] + n * datum_size;
          }
          for (i = 1; i < p; i++)
          {
-            if (i == p - 1)
-            {
-               temp_m = 1;
-            }
-            else
-            {
-               temp_m = 2;
-            }
+            if (i == p - 1 || i == 0){temp_m = 1;} else {temp_m = 2;}
             MPI_Send(&prompt, 1, MPI_INT, i, PROMPT_MSG, MPI_COMM_WORLD);
             MPI_Recv(bstorage, (BLOCK_SIZE(i, p, m) + temp_m) * n, dtype, i, RESPONSE_MSG, MPI_COMM_WORLD, &status);
             print_submatrix(b, dtype, (BLOCK_SIZE(i, p, m) + (temp_m)), n);
-            printf("\n");
          }
          free(b);
          free(bstorage);
@@ -1151,9 +1145,7 @@ void print_row_striped_matrix_halo(
    }
    else
    {
-      // All processors send their data to 0. Zero does not come here.
       MPI_Recv(&prompt, 1, MPI_INT, 0, PROMPT_MSG, MPI_COMM_WORLD, &status);
-      // printf("Sending id %d: with %d rows\n",id,  local_rows + temp_m);
       MPI_Send(*a, (local_rows + temp_m) * n, dtype, 0, RESPONSE_MSG, MPI_COMM_WORLD);
    }
 }
@@ -1250,28 +1242,48 @@ void write_row_striped_matrix_halo(
                           any process */
    int prompt;         /* Dummy variable */
    int p;              /* Number of processes */
+   int total_halo = 0;
+   int temp_m = 0;
    FILE *fp;
    MPI_Comm_rank(comm, &id);
    MPI_Comm_size(comm, &p);
    local_rows = BLOCK_SIZE(id, p, m);
-   fp = fopen(outFile, "w");
 
    // Writes to file only once, as discussed with Dr. William Jones
    if (id == 0)
    {
+      fp = fopen(outFile, "w");
       fwrite(&m, sizeof(int), 1, fp);
       fwrite(&n, sizeof(int), 1, fp);
    }
 
+    if (id == 0 || id == p - 1)
+   {
+      temp_m = 1;
+   }
+   else
+   {
+      temp_m = 2;
+   }
+
    if (!id)
    {
-      fwrite(a[0], local_rows * n, sizeof(dtype), fp);
-      printf("\n");
+      fwrite(a[0], (local_rows) * n, sizeof(dtype), fp);
       if (p > 1)
       {
+         for (int i = 0; i < p; i++)
+         {
+            if (i == 0 || i == p - 1)
+            {
+               total_halo = total_halo + 1;
+            }
+            else
+            {
+               total_halo = total_halo + 2;
+            }
+         }
          datum_size = get_size(dtype);
-         // Biggest Size of a halo
-         max_block_size = 4;
+         max_block_size = BLOCK_SIZE(id, p, m) + total_halo;
          bstorage = my_malloc(id, max_block_size * n * datum_size);
          b = (void **)my_malloc(id, max_block_size * datum_size);
          b[0] = bstorage;
@@ -1281,10 +1293,10 @@ void write_row_striped_matrix_halo(
          }
          for (i = 1; i < p; i++)
          {
+            if (i == p - 1 || i == 0){temp_m = 1;} else {temp_m = 2;}
             MPI_Send(&prompt, 1, MPI_INT, i, PROMPT_MSG, MPI_COMM_WORLD);
-            MPI_Recv(bstorage, BLOCK_SIZE(i, p, m) * n, dtype, i, RESPONSE_MSG, MPI_COMM_WORLD, &status);
-            fwrite(b[1], BLOCK_SIZE(i, p, m) * n, sizeof(dtype), fp);
-            printf("\n");
+            MPI_Recv(bstorage, (BLOCK_SIZE(i, p, m) + temp_m) * n, dtype, i, RESPONSE_MSG, MPI_COMM_WORLD, &status);
+            fwrite(b[1], (BLOCK_SIZE(i, p, m)) * n, sizeof(dtype), fp);
          }
          free(b);
          free(bstorage);
@@ -1296,7 +1308,7 @@ void write_row_striped_matrix_halo(
    {
 
       MPI_Recv(&prompt, 1, MPI_INT, 0, PROMPT_MSG, MPI_COMM_WORLD, &status);
-      MPI_Send(*a, local_rows * n, dtype, 0, RESPONSE_MSG, MPI_COMM_WORLD);
+      MPI_Send(*a, (local_rows + temp_m) * n, dtype, 0, RESPONSE_MSG, MPI_COMM_WORLD);
    }
 }
 
